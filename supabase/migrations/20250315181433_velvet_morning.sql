@@ -1,0 +1,126 @@
+/*
+  # Documents Structure Implementation
+
+  1. New Tables
+    - `documents` table for storing generated documents
+      - `id` (uuid, primary key)
+      - `user_id` (uuid, foreign key to auth.users)
+      - `name` (text) - document name
+      - `type` (text) - document type (contract, factura, oferta)
+      - `status` (text) - document status (pending, completed, error)
+      - `file_path` (text) - path to the generated PDF in storage
+      - `document_data` (jsonb) - form data used to generate document
+      - `created_at` (timestamptz)
+      - `updated_at` (timestamptz)
+
+  2. Security
+    - Enable RLS on documents table
+    - Add policies for authenticated users to manage their documents
+    - Create storage bucket for document files with appropriate policies
+
+  3. Changes
+    - Add trigger for updating updated_at timestamp
+*/
+
+-- Create documents table
+CREATE TABLE IF NOT EXISTS documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  type text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  file_path text,
+  document_data jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Users can manage their own documents"
+  ON documents
+  FOR ALL
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Create updated_at trigger function if it doesn't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
+    CREATE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = now();
+      RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+  END IF;
+END $$;
+
+-- Create trigger if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger 
+    WHERE tgname = 'update_documents_updated_at'
+  ) THEN
+    CREATE TRIGGER update_documents_updated_at
+      BEFORE UPDATE ON documents
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
+
+-- Create storage bucket for documents if it doesn't exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('documents', 'documents', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable storage policies for authenticated users
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'Users can upload their own documents'
+    AND tablename = 'objects'
+    AND schemaname = 'storage'
+  ) THEN
+    CREATE POLICY "Users can upload their own documents"
+    ON storage.objects FOR INSERT TO authenticated
+    WITH CHECK (
+      bucket_id = 'documents' AND 
+      auth.uid()::text = (storage.foldername(name))[1]
+    );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'Users can view their own documents'
+    AND tablename = 'objects'
+    AND schemaname = 'storage'
+  ) THEN
+    CREATE POLICY "Users can view their own documents"
+    ON storage.objects FOR SELECT TO authenticated
+    USING (
+      bucket_id = 'documents' AND 
+      auth.uid()::text = (storage.foldername(name))[1]
+    );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE policyname = 'Users can delete their own documents'
+    AND tablename = 'objects'
+    AND schemaname = 'storage'
+  ) THEN
+    CREATE POLICY "Users can delete their own documents"
+    ON storage.objects FOR DELETE TO authenticated
+    USING (
+      bucket_id = 'documents' AND 
+      auth.uid()::text = (storage.foldername(name))[1]
+    );
+  END IF;
+END $$;
