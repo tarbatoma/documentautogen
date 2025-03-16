@@ -4,9 +4,10 @@ import {
   User, Mail, Lock, CreditCard, Upload, Palette, Bell, 
   Check, X, ChevronRight, Crown
 } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, uploadLogo, updateBranding } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
@@ -63,6 +64,7 @@ const SettingsPage = () => {
       }
     } catch (error) {
       console.error('Error fetching branding settings:', error);
+      toast.error('Eroare la încărcarea setărilor de branding');
     }
   };
 
@@ -82,25 +84,15 @@ const SettingsPage = () => {
           limitReminder: data.limit_reminder
         });
       } else {
-        // If no settings exist, create default settings
-        const { data: newSettings, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from('user_settings')
           .insert([{
             user_id: user.id,
             email_notifications: true,
             limit_reminder: true
-          }])
-          .select()
-          .single();
+          }]);
 
         if (insertError) throw insertError;
-
-        if (newSettings) {
-          setNotifications({
-            emailOnSend: newSettings.email_notifications,
-            limitReminder: newSettings.limit_reminder
-          });
-        }
       }
     } catch (error) {
       console.error('Error initializing user settings:', error);
@@ -113,15 +105,6 @@ const SettingsPage = () => {
     setLoading(true);
 
     try {
-      // Update basic profile info
-      const { error: updateError } = await supabase.auth.updateUser({
-        email: profileData.email,
-        data: { full_name: profileData.fullName }
-      });
-
-      if (updateError) throw updateError;
-
-      // Update password if provided
       if (profileData.newPassword) {
         if (profileData.newPassword !== profileData.confirmPassword) {
           throw new Error('Parolele noi nu coincid');
@@ -133,6 +116,13 @@ const SettingsPage = () => {
 
         if (passwordError) throw passwordError;
       }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        email: profileData.email,
+        data: { full_name: profileData.fullName }
+      });
+
+      if (updateError) throw updateError;
 
       toast.success('Profilul a fost actualizat cu succes!');
       setProfileData(prev => ({
@@ -156,42 +146,26 @@ const SettingsPage = () => {
     try {
       let logoUrl = brandingData.logo;
 
-      // Upload new logo if selected
       if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${user.id}-logo.${fileExt}`;
-        const filePath = `branding/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('logos')
-          .upload(filePath, selectedFile, { upsert: true });
-
+        const { publicUrl, error: uploadError } = await uploadLogo(user.id, selectedFile);
         if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('logos')
-          .getPublicUrl(filePath);
-
         logoUrl = publicUrl;
       }
 
-      // Update branding settings
-      const { error } = await supabase
-        .from('branding')
-        .upsert({
-          user_id: user.id,
-          logo_url: logoUrl,
-          primary_color: brandingData.primaryColor,
-          secondary_color: brandingData.secondaryColor
-        });
+      const { error } = await updateBranding(user.id, {
+        logo_url: logoUrl,
+        primary_color: DOMPurify.sanitize(brandingData.primaryColor),
+        secondary_color: DOMPurify.sanitize(brandingData.secondaryColor)
+      });
 
       if (error) throw error;
 
       toast.success('Setările de branding au fost actualizate!');
       setSelectedFile(null);
+      fetchBrandingSettings(); // Refresh branding data
     } catch (error) {
+      console.error('Error updating branding:', error);
       toast.error('Eroare la actualizarea setărilor de branding');
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -199,48 +173,23 @@ const SettingsPage = () => {
 
   const handleNotificationUpdate = async (newSettings) => {
     try {
-      // First check if settings exist
-      const { data: existingSettings, error: checkError } = await supabase
+      const { error } = await supabase
         .from('user_settings')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
-      let error;
-
-      if (existingSettings) {
-        // Update existing settings
-        const { error: updateError } = await supabase
-          .from('user_settings')
-          .update({
-            email_notifications: newSettings.emailOnSend,
-            limit_reminder: newSettings.limitReminder
-          })
-          .eq('user_id', user.id);
-        
-        error = updateError;
-      } else {
-        // Insert new settings
-        const { error: insertError } = await supabase
-          .from('user_settings')
-          .insert([{
-            user_id: user.id,
-            email_notifications: newSettings.emailOnSend,
-            limit_reminder: newSettings.limitReminder
-          }]);
-        
-        error = insertError;
-      }
+        .upsert({
+          user_id: user.id,
+          email_notifications: newSettings.emailOnSend,
+          limit_reminder: newSettings.limitReminder
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) throw error;
 
       setNotifications(newSettings);
       toast.success('Preferințele de notificări au fost actualizate!');
     } catch (error) {
+      console.error('Error updating notification preferences:', error);
       toast.error('Eroare la actualizarea preferințelor de notificări');
-      console.error(error);
     }
   };
 

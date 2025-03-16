@@ -44,7 +44,7 @@ const DocumentsPage = () => {
         const { error: storageError } = await supabase
           .storage
           .from('documents')
-          .remove([`${user.id}/${document.file_path}`]);
+          .remove([document.file_path]);
 
         if (storageError) throw storageError;
       }
@@ -72,29 +72,27 @@ const DocumentsPage = () => {
         return;
       }
 
-      // Construct the correct file path
-      const filePath = `${user.id}/${doc.file_path}`;
-      console.log('Downloading file from path:', filePath);
-
-      const { data, error } = await supabase
+      // Get a signed URL for the file
+      const { data: { signedUrl }, error: signedUrlError } = await supabase
         .storage
         .from('documents')
-        .download(filePath);
+        .createSignedUrl(doc.file_path, 60); // URL valid for 60 seconds
 
-      if (error) {
-        console.error('Error downloading document:', error);
-        throw error;
-      }
+      if (signedUrlError) throw signedUrlError;
 
-      // Create blob URL and trigger download using window.document
-      const url = window.URL.createObjectURL(data);
-      const link = window.document.createElement('a');
+      // Download using the signed URL
+      const response = await fetch(signedUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
       link.href = url;
       link.download = `${doc.name}.pdf`;
-      window.document.body.appendChild(link);
+      document.body.appendChild(link);
       link.click();
       window.URL.revokeObjectURL(url);
-      window.document.body.removeChild(link);
+      document.body.removeChild(link);
 
       toast.success('Document descărcat cu succes');
     } catch (error) {

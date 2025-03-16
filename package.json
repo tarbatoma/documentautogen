@@ -12,13 +12,16 @@
   "dependencies": {
     "@headlessui/react": "^1.7.18",
     "@supabase/supabase-js": "^2.49.1",
+    "dompurify": "^3.0.9",
     "framer-motion": "^11.0.8",
+    "html2pdf.js": "^0.10.1",
     "jspdf": "^2.5.1",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-countup": "^6.5.0",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.5.2",
+    "react-quill": "^2.0.0",
     "react-router-dom": "^6.22.3",
     "recharts": "^2.12.2"
   },
