@@ -4,10 +4,9 @@ import {
   User, Mail, Lock, CreditCard, Upload, Palette, Bell, 
   Check, X, ChevronRight, Crown
 } from 'lucide-react';
-import DOMPurify from 'dompurify';
 import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase, uploadLogo, updateBranding } from '../../lib/supabase';
+import { supabase, initializeUserSettings, uploadLogo, updateBranding } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
@@ -40,13 +39,23 @@ const SettingsPage = () => {
   useEffect(() => {
     if (user) {
       fetchBrandingSettings();
-      initializeUserSettings();
+      initializeUserSettings(user.id).then(({ data, error }) => {
+        if (error) {
+          console.error('Error initializing user settings:', error);
+          toast.error('Eroare la inițializarea setărilor');
+          return;
+        }
+        if (data) {
+          setNotifications({
+            emailOnSend: data.email_notifications,
+            limitReminder: data.limit_reminder
+          });
+        }
+      });
     }
   }, [user]);
 
   const fetchBrandingSettings = async () => {
-    if (!isBusiness) return;
-
     try {
       const { data, error } = await supabase
         .from('branding')
@@ -65,38 +74,6 @@ const SettingsPage = () => {
     } catch (error) {
       console.error('Error fetching branding settings:', error);
       toast.error('Eroare la încărcarea setărilor de branding');
-    }
-  };
-
-  const initializeUserSettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setNotifications({
-          emailOnSend: data.email_notifications,
-          limitReminder: data.limit_reminder
-        });
-      } else {
-        const { error: insertError } = await supabase
-          .from('user_settings')
-          .insert([{
-            user_id: user.id,
-            email_notifications: true,
-            limit_reminder: true
-          }]);
-
-        if (insertError) throw insertError;
-      }
-    } catch (error) {
-      console.error('Error initializing user settings:', error);
-      toast.error('Eroare la inițializarea setărilor');
     }
   };
 
@@ -154,8 +131,8 @@ const SettingsPage = () => {
 
       const { error } = await updateBranding(user.id, {
         logo_url: logoUrl,
-        primary_color: DOMPurify.sanitize(brandingData.primaryColor),
-        secondary_color: DOMPurify.sanitize(brandingData.secondaryColor)
+        primary_color: brandingData.primaryColor,
+        secondary_color: brandingData.secondaryColor
       });
 
       if (error) throw error;
