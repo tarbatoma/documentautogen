@@ -35,9 +35,9 @@ const TemplatesPage = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // If user is not admin, only fetch their templates
+      // Get both user templates and global templates (where user_id is null)
       if (user?.user_metadata?.role !== 'admin') {
-        query = query.eq('user_id', user.id);
+        query = query.or(`user_id.eq.${user.id},user_id.is.null`);
       }
 
       const { data, error } = await query;
@@ -102,6 +102,13 @@ const TemplatesPage = () => {
   };
 
   const handleDeleteTemplate = async (templateId) => {
+    // Don't allow deletion of global templates
+    const template = templates.find(t => t.id === templateId);
+    if (!template.user_id) {
+      toast.error('Nu poți șterge template-urile globale');
+      return;
+    }
+
     if (!window.confirm('Ești sigur că vrei să ștergi acest template?')) {
       return;
     }
@@ -275,25 +282,34 @@ const TemplatesPage = () => {
                       >
                         <Star className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTemplate(template.id);
-                        }}
-                        className="p-2 rounded-full bg-white/90 text-red-600 hover:bg-red-500 hover:text-white transition-colors"
-                        title="Șterge template"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {template.user_id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTemplate(template.id);
+                          }}
+                          className="p-2 rounded-full bg-white/90 text-red-600 hover:bg-red-500 hover:text-white transition-colors"
+                          title="Șterge template"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* Template Info */}
                 <div className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    {template.name}
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {template.name}
+                    </h3>
+                    {!template.user_id && (
+                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                        Global
+                      </span>
+                    )}
+                  </div>
                   <p className="text-gray-600 text-sm mb-4">
                     {template.description}
                   </p>

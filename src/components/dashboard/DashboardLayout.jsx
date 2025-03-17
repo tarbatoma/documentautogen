@@ -12,7 +12,8 @@ import {
   ChevronUp,
   User,
   HelpCircle,
-  Workflow
+  Workflow,
+  BarChart
 } from 'lucide-react';
 
 const DashboardLayout = ({ children }) => {
@@ -24,6 +25,7 @@ const DashboardLayout = ({ children }) => {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Template-uri', href: '/dashboard/templates', icon: FileText },
     { name: 'Documentele Mele', href: '/dashboard/documents', icon: Files },
+    { name: 'Rapoarte', href: '/dashboard/reports', icon: BarChart },
     { name: 'Automatizări', href: '/dashboard/automation', icon: Workflow, pro: true },
     { name: 'Setări', href: '/dashboard/settings', icon: Settings },
     { name: 'Ajutor', href: '/dashboard/help', icon: HelpCircle }

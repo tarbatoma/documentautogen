@@ -17,6 +17,7 @@ import DocumentsPage from './pages/dashboard/DocumentsPage';
 import NewDocumentPage from './pages/dashboard/documents/NewDocumentPage';
 import TemplatesPage from './pages/dashboard/TemplatesPage';
 import AutomationPage from './pages/dashboard/AutomationPage';
+import ReportsPage from './pages/dashboard/ReportsPage';
 import SettingsPage from './pages/dashboard/SettingsPage';
 import HelpPage from './pages/dashboard/HelpPage';
 import QuickGuidePage from './pages/dashboard/help/QuickGuidePage';
@@ -33,6 +34,7 @@ function App() {
           <Route path="/dashboard/documents/new" element={<NewDocumentPage />} />
           <Route path="/dashboard/templates" element={<TemplatesPage />} />
           <Route path="/dashboard/automation" element={<AutomationPage />} />
+          <Route path="/dashboard/reports" element={<ReportsPage />} />
           <Route path="/dashboard/settings" element={<SettingsPage />} />
           <Route path="/dashboard/help" element={<HelpPage />} />
           <Route path="/dashboard/help/quick-guide" element={<QuickGuidePage />} />
