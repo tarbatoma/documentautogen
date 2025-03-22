@@ -4,6 +4,10 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import RequireAuth from './components/RequireAuth';
+import GuestRoute from './components/GuestRoute';
+
+// Pagini Publice
 import HomePage from './pages/HomePage';
 import FeaturesPage from './pages/FeaturesPage';
 import PricingPage from './pages/PricingPage';
@@ -12,6 +16,8 @@ import ContactPage from './pages/ContactPage';
 import SignUpPage from './pages/SignUpPage';
 import LoginPage from './pages/LoginPage';
 import CaseStudiesPage from './pages/CaseStudiesPage';
+
+// Pagini Dashboard (pentru utilizatori autentificați)
 import DashboardPage from './pages/dashboard/DashboardPage';
 import DocumentsPage from './pages/dashboard/DocumentsPage';
 import NewDocumentPage from './pages/dashboard/documents/NewDocumentPage';
@@ -29,17 +35,97 @@ function App() {
     <AuthProvider>
       <div className="min-h-screen bg-white flex flex-col">
         <Routes>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/dashboard/documents" element={<DocumentsPage />} />
-          <Route path="/dashboard/documents/new" element={<NewDocumentPage />} />
-          <Route path="/dashboard/templates" element={<TemplatesPage />} />
-          <Route path="/dashboard/automation" element={<AutomationPage />} />
-          <Route path="/dashboard/reports" element={<ReportsPage />} />
-          <Route path="/dashboard/settings" element={<SettingsPage />} />
-          <Route path="/dashboard/help" element={<HelpPage />} />
-          <Route path="/dashboard/help/quick-guide" element={<QuickGuidePage />} />
-          <Route path="/dashboard/help/video-tutorials" element={<VideoTutorialsPage />} />
-          <Route path="/dashboard/help/billing" element={<BillingPage />} />
+          {/* Rute protejate pentru dashboard */}
+          <Route
+            path="/dashboard"
+            element={
+              <RequireAuth>
+                <DashboardPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/documents"
+            element={
+              <RequireAuth>
+                <DocumentsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/documents/new"
+            element={
+              <RequireAuth>
+                <NewDocumentPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/templates"
+            element={
+              <RequireAuth>
+                <TemplatesPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/automation"
+            element={
+              <RequireAuth>
+                <AutomationPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/reports"
+            element={
+              <RequireAuth>
+                <ReportsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/settings"
+            element={
+              <RequireAuth>
+                <SettingsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/help"
+            element={
+              <RequireAuth>
+                <HelpPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/help/quick-guide"
+            element={
+              <RequireAuth>
+                <QuickGuidePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/help/video-tutorials"
+            element={
+              <RequireAuth>
+                <VideoTutorialsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/dashboard/help/billing"
+            element={
+              <RequireAuth>
+                <BillingPage />
+              </RequireAuth>
+            }
+          />
+
+          {/* Rute publice */}
           <Route
             path="*"
             element={
@@ -47,14 +133,70 @@ function App() {
                 <Navbar />
                 <main className="flex-grow">
                   <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/features" element={<FeaturesPage />} />
-                    <Route path="/pricing" element={<PricingPage />} />
-                    <Route path="/about" element={<AboutPage />} />
-                    <Route path="/contact" element={<ContactPage />} />
-                    <Route path="/signup" element={<SignUpPage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/case-studies" element={<CaseStudiesPage />} />
+                    <Route
+                      path="/"
+                      element={
+                        <GuestRoute>
+                          <HomePage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/features"
+                      element={
+                        <GuestRoute>
+                          <FeaturesPage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/pricing"
+                      element={
+                        <GuestRoute>
+                          <PricingPage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/about"
+                      element={
+                        <GuestRoute>
+                          <AboutPage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/contact"
+                      element={
+                        <GuestRoute>
+                          <ContactPage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/signup"
+                      element={
+                        <GuestRoute>
+                          <SignUpPage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/login"
+                      element={
+                        <GuestRoute>
+                          <LoginPage />
+                        </GuestRoute>
+                      }
+                    />
+                    <Route
+                      path="/case-studies"
+                      element={
+                        <GuestRoute>
+                          <CaseStudiesPage />
+                        </GuestRoute>
+                      }
+                    />
                   </Routes>
                 </main>
                 <Footer />
