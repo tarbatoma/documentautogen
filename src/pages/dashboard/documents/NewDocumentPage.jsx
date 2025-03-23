@@ -17,13 +17,11 @@ const NewDocumentPage = () => {
   const [formData, setFormData] = useState({});
   const [branding, setBranding] = useState(null);
   const [logoSettings, setLogoSettings] = useState({
-    position: 'centru',
-    size: 'mediu'
+    position: 'centru', // opțiuni: stanga, centru, dreapta, fundal_sus, fundal_centru, fundal_jos
+    size: 'mediu'       // opțiuni: mic, mediu, mare
   });
-  const [items, setItems] = useState([
-    { descriere: '', cantitate: 1, pret_unitar: 0 }
-  ]);
-  
+  const [items, setItems] = useState([{ descriere: '', cantitate: 1, pret_unitar: 0 }]);
+
   const template = location.state?.template;
   const isInvoiceTemplate = template?.category === 'factura';
 
@@ -32,7 +30,6 @@ const NewDocumentPage = () => {
       navigate('/dashboard/templates');
       return;
     }
-
     fetchBranding();
     initializeFormData();
   }, [template, navigate]);
@@ -44,9 +41,9 @@ const NewDocumentPage = () => {
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
-
       if (error && error.code !== 'PGRST116') throw error;
       setBranding(data);
+      console.log("Branding data:", data);
     } catch (error) {
       console.error('Error fetching branding:', error);
     }
@@ -54,7 +51,6 @@ const NewDocumentPage = () => {
 
   const initializeFormData = () => {
     if (!template?.template_data?.variables) return;
-    
     const initialData = {};
     template.template_data.variables.forEach(variable => {
       initialData[variable] = template.template_data.default_values?.[variable] || '';
@@ -63,10 +59,7 @@ const NewDocumentPage = () => {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleItemChange = (index, field, value) => {
@@ -85,12 +78,9 @@ const NewDocumentPage = () => {
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => 
-      sum + (item.cantitate * item.pret_unitar), 0
-    );
+    const subtotal = items.reduce((sum, item) => sum + (item.cantitate * item.pret_unitar), 0);
     const tva = subtotal * 0.19; // 19% TVA
     const total = subtotal + tva;
-
     return {
       subtotal: subtotal.toFixed(2),
       valoare_tva: tva.toFixed(2),
@@ -100,7 +90,6 @@ const NewDocumentPage = () => {
 
   const generateInvoiceTable = () => {
     const totals = calculateTotals();
-    
     return `
       <table class="w-full mb-8 border-collapse">
         <thead>
@@ -125,30 +114,29 @@ const NewDocumentPage = () => {
     `;
   };
 
+  // Stilurile pentru logo
   const logoStyles = {
-    mic: "width: 100px",
-    mediu: "width: 200px",
-    mare: "width: 300px"
+    mic: "width: 100px;",
+    mediu: "width: 200px;",
+    mare: "width: 300px;"
   };
 
+  // Stilurile pentru poziționare
   const positionStyles = {
-    stanga: "position: absolute; top: 20px; left: 20px;",
-    centru: "position: absolute; top: 20px; left: 50%; transform: translateX(-50%);",
-    dreapta: "position: absolute; top: 20px; right: 20px;",
-    fundal_sus: "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; width: 80%;",
-    fundal_centru: "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.1; width: 80%;",
-    fundal_jos: "position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); opacity: 0.1; width: 80%;"
+    stanga: "top: 20px; left: 20px;",
+    centru: "top: 20px; left: 50%; transform: translateX(-50%);",
+    dreapta: "top: 20px; right: 20px;",
+    fundal_sus: "top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%;",
+    fundal_centru: "top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%;",
+    fundal_jos: "bottom: 50px; left: 50%; transform: translateX(-50%); width: 80%;"
   };
 
+  // Generare HTML pentru document (fără watermark dacă este factură)
   const generateDocumentHTML = (content, values) => {
     let sanitizedContent = DOMPurify.sanitize(content);
-    
-    // Replace variables with actual values
     Object.entries(values).forEach(([key, value]) => {
       sanitizedContent = sanitizedContent.replaceAll(`{${key}}`, value || `{${key}}`);
     });
-
-    // For invoice template, replace table placeholder
     if (isInvoiceTemplate) {
       const totals = calculateTotals();
       sanitizedContent = sanitizedContent
@@ -156,37 +144,29 @@ const NewDocumentPage = () => {
         .replace('{subtotal}', totals.subtotal)
         .replace('{valoare_tva}', totals.valoare_tva)
         .replace('{total_general}', totals.total_general);
+    } else {
+      // Pentru documentele care nu sunt facturi, înlocuim placeholder-ul {logo_firma}
+      let logoHtml = '';
+      if (branding?.logo_url) {
+        logoHtml = `
+          <img 
+            src="${branding.logo_url}" 
+            alt="Company Logo" 
+            style="position: absolute; z-index: 0; opacity: 0.1; ${logoStyles[logoSettings.size]} ${positionStyles[logoSettings.position]}"
+          />
+        `;
+      }
+      sanitizedContent = sanitizedContent.replace('{logo_firma}', logoHtml);
     }
-
-    // Generate logo HTML if branding exists
-    const logoHtml = branding?.logo_url ? `
-      <img 
-        src="${branding.logo_url}" 
-        alt="Company Logo" 
-        style="${logoStyles[logoSettings.size]}; ${positionStyles[logoSettings.position]}"
-      />
-    ` : '';
-
-    // Replace logo placeholder
-    sanitizedContent = sanitizedContent.replace('{logo_firma}', logoHtml);
-
-    return `
-      <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; position: relative;">
-        ${sanitizedContent}
-      </div>
-    `;
+    return sanitizedContent;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     try {
       setLoading(true);
-
       const documentName = `${template.name} - ${new Date().toLocaleDateString('ro-RO')}`;
-      
-      // Create document record first
-      const { data: document, error: insertError } = await supabase
+      const { data: doc, error: insertError } = await supabase
         .from('documents')
         .insert({
           user_id: user.id,
@@ -201,30 +181,21 @@ const NewDocumentPage = () => {
         })
         .select()
         .single();
-
       if (insertError) throw insertError;
-
-      // Generate PDF using html2pdf
       const htmlContent = generateDocumentHTML(template.template_data.content, formData);
-      
       const options = {
         margin: 10,
         filename: `${documentName}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
+        html2canvas: {
           scale: 2,
-          useCORS: true, // Important for loading external images
+          useCORS: true,
           allowTaint: true
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-
-      const pdfBlob = await html2pdf()
-        .set(options)
-        .from(htmlContent)
-        .outputPdf('blob');
-      
-      const filePath = `${user.id}/${document.id}.pdf`;
+      const pdfBlob = await html2pdf().set(options).from(htmlContent).outputPdf('blob');
+      const filePath = `${user.id}/${doc.id}.pdf`;
       const { error: uploadError } = await supabase
         .storage
         .from('documents')
@@ -232,19 +203,12 @@ const NewDocumentPage = () => {
           contentType: 'application/pdf',
           upsert: true
         });
-
       if (uploadError) throw uploadError;
-
       const { error: updateError } = await supabase
         .from('documents')
-        .update({
-          file_path: filePath,
-          status: 'completed'
-        })
-        .eq('id', document.id);
-
+        .update({ file_path: filePath, status: 'completed' })
+        .eq('id', doc.id);
       if (updateError) throw updateError;
-
       toast.success('Document generat cu succes!');
       navigate('/dashboard/documents');
     } catch (error) {
@@ -255,8 +219,31 @@ const NewDocumentPage = () => {
     }
   };
 
-  if (!template) {
-    return null;
+  if (!template) return null;
+
+  // Definim watermarkStyle doar pentru documentele care nu sunt facturi
+  let watermarkStyle = {};
+  if (!isInvoiceTemplate && branding?.logo_url) {
+    const sizeMap = { mic: '20%', mediu: '40%', mare: '60%' };
+    const chosenSize = sizeMap[logoSettings.size] || '40%';
+    const posMap = {
+      stanga: 'top left',
+      centru: 'top center',
+      dreapta: 'top right',
+      fundal_sus: 'center center',
+      fundal_centru: 'center center',
+      fundal_jos: 'bottom center'
+    };
+    const chosenPos = posMap[logoSettings.position] || 'top center';
+    watermarkStyle = {
+      backgroundImage: `url(${branding.logo_url})`,
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: chosenSize,
+      backgroundPosition: chosenPos,
+      // Ajustează backgroundColor și blend pentru watermark:
+      backgroundColor: 'rgba(255,255,255,0.4)',
+      backgroundBlendMode: 'lighten'
+    };
   }
 
   return (
@@ -272,37 +259,33 @@ const NewDocumentPage = () => {
           </button>
           <h1 className="text-2xl font-bold text-gray-900">Generează Document Nou</h1>
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Form Section */}
+          {/* FORMULAR */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+            className="rounded-xl shadow-sm border border-gray-200 p-6 bg-white"
           >
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                {template.name}
-              </h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{template.name}</h2>
               <p className="text-gray-600">
                 Completează informațiile necesare pentru generarea documentului
               </p>
             </div>
-
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Logo Settings */}
-              {branding?.logo_url && (
+              {!isInvoiceTemplate && branding?.logo_url && (
                 <div className="space-y-4 border-b border-gray-200 pb-6">
                   <h3 className="font-medium text-gray-900">Setări Logo</h3>
-                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Poziție Logo
                     </label>
                     <select
                       value={logoSettings.position}
-                      onChange={(e) => setLogoSettings({...logoSettings, position: e.target.value})}
+                      onChange={(e) =>
+                        setLogoSettings({ ...logoSettings, position: e.target.value })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="stanga">Stânga</option>
@@ -313,14 +296,15 @@ const NewDocumentPage = () => {
                       <option value="fundal_jos">Fundal Jos</option>
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Dimensiune Logo
                     </label>
                     <select
                       value={logoSettings.size}
-                      onChange={(e) => setLogoSettings({...logoSettings, size: e.target.value})}
+                      onChange={(e) =>
+                        setLogoSettings({ ...logoSettings, size: e.target.value })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="mic">Mic</option>
@@ -330,12 +314,9 @@ const NewDocumentPage = () => {
                   </div>
                 </div>
               )}
-
-              {/* Invoice Items */}
               {isInvoiceTemplate && (
                 <div className="space-y-4 border-b border-gray-200 pb-6">
                   <h3 className="font-medium text-gray-900">Produse / Servicii</h3>
-                  
                   {items.map((item, index) => (
                     <div key={index} className="space-y-4 p-4 bg-gray-50 rounded-lg relative">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -380,7 +361,6 @@ const NewDocumentPage = () => {
                           />
                         </div>
                       </div>
-                      
                       {items.length > 1 && (
                         <button
                           type="button"
@@ -392,7 +372,6 @@ const NewDocumentPage = () => {
                       )}
                     </div>
                   ))}
-
                   <button
                     type="button"
                     onClick={addItem}
@@ -401,7 +380,6 @@ const NewDocumentPage = () => {
                     <Plus className="w-5 h-5" />
                     Adaugă Produs/Serviciu
                   </button>
-
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-2">Sumar</h4>
                     <div className="space-y-2">
@@ -421,8 +399,6 @@ const NewDocumentPage = () => {
                   </div>
                 </div>
               )}
-
-              {/* Document Fields */}
               <div className="grid grid-cols-1 gap-6">
                 {template.template_data.variables && template.template_data.variables.map((variable) => (
                   <div key={variable}>
@@ -439,7 +415,6 @@ const NewDocumentPage = () => {
                   </div>
                 ))}
               </div>
-
               <div className="flex justify-end pt-6 border-t border-gray-200">
                 <button
                   type="submit"
@@ -461,22 +436,22 @@ const NewDocumentPage = () => {
               </div>
             </form>
           </motion.div>
-
-          {/* Preview Section */}
+          {/* PREVIEW */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+            style={watermarkStyle}
+            className="rounded-xl shadow-sm border border-gray-200 p-6"
           >
             <h2 className="text-xl font-semibold text-gray-900 mb-6">
               Previzualizare Document
             </h2>
-            <div 
+            <div
               className="prose max-w-none"
-              dangerouslySetInnerHTML={{ 
+              dangerouslySetInnerHTML={{
                 __html: generateDocumentHTML(template.template_data.content, formData)
-              }} 
+              }}
             />
           </motion.div>
         </div>
