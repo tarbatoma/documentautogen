@@ -115,28 +115,42 @@ const NewDocumentPage = () => {
   };
 
   // Stilurile pentru logo
-  const logoStyles = {
-    mic: "width: 100px;",
-    mediu: "width: 200px;",
-    mare: "width: 300px;"
-  };
+const logoStyles = {
+  mic: "width: 100px;",
+  mediu: "width: 200px;",
+  mare: "width: 300px;"
+};
 
-  // Stilurile pentru poziționare
-  const positionStyles = {
-    stanga: "top: 20px; left: 20px;",
-    centru: "top: 20px; left: 50%; transform: translateX(-50%);",
-    dreapta: "top: 20px; right: 20px;",
-    fundal_sus: "top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%;",
-    fundal_centru: "top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%;",
-    fundal_jos: "bottom: 50px; left: 50%; transform: translateX(-50%); width: 80%;"
-  };
+// Stilurile pentru poziționare
+const positionStyles = {
+  stanga: "top: 20px; left: 20px;",
+  centru: "top: 20px; left: 50%; transform: translateX(-50%);",
+  dreapta: "top: 20px; right: 20px;",
+  fundal_sus: "top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%;",
+  fundal_centru: "top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%;",
+  fundal_jos: "bottom: 50px; left: 50%; transform: translateX(-50%); width: 80%;"
+};
+
+
 
   // Generare HTML pentru document (fără watermark dacă este factură)
   const generateDocumentHTML = (content, values) => {
-    let sanitizedContent = DOMPurify.sanitize(content);
-    Object.entries(values).forEach(([key, value]) => {
-      sanitizedContent = sanitizedContent.replaceAll(`{${key}}`, value || `{${key}}`);
+    let sanitizedContent = DOMPurify.sanitize(content, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'span', 'div', 'sub', 'sup', 'img'],
+      ALLOWED_ATTR: ['style', 'class', 'src', 'alt'],
+      ALLOWED_CSS_PROPERTIES: [
+        'font-family', 'font-size', 'color', 'background-color', 'text-align',
+        'font-weight', 'font-style', 'text-decoration',
+        'position', 'z-index', 'opacity', 'width', 'transform',
+        'top', 'bottom', 'left', 'right'
+      ]
     });
+    
+  
+    Object.entries(values).forEach(([key, value]) => {
+      sanitizedContent = sanitizedContent.split(`{${key}}`).join(value || `{${key}}`);
+    });
+  
     if (isInvoiceTemplate) {
       const totals = calculateTotals();
       sanitizedContent = sanitizedContent
@@ -145,7 +159,6 @@ const NewDocumentPage = () => {
         .replace('{valoare_tva}', totals.valoare_tva)
         .replace('{total_general}', totals.total_general);
     } else {
-      // Pentru documentele care nu sunt facturi, înlocuim placeholder-ul {logo_firma}
       let logoHtml = '';
       if (branding?.logo_url) {
         logoHtml = `
@@ -158,8 +171,10 @@ const NewDocumentPage = () => {
       }
       sanitizedContent = sanitizedContent.replace('{logo_firma}', logoHtml);
     }
+  
     return sanitizedContent;
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
